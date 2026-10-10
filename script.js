@@ -11,11 +11,8 @@ const resultsList = document.getElementById("results-list");
 const description = document.getElementById("description");
 
 const songs = [
-  { name: "Skin", image: "images/skin.jpg" },
-  {
-    name: "Stuck in Between",
-    image: "images/stuck in between.jpg"
-  }
+  { name: "Skin", image: "Skin.jpg" },
+  { name: "Stuck in Between", image: "Stuck in Between.jpg" }
 ];
 
 const storageKey = "becky-song-results";
