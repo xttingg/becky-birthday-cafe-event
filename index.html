@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What Will Your Song Be?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Sniglet&display=swap" rel="stylesheet">   
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>What Will Your Song Be?</h1>
+    <p class="intro">
+  A little surprise from Becky's playlist — discover your song keychain!
+</p>
+
+    <div class="cover-container">
+  <div id="mystery-cover">
+    <span class="mystery-icon">♫</span>
+    <span>Your song awaits…</span>
+  </div>
+
+  <img
+    id="song-cover"
+    src="images/skin.jpg"
+    alt="Skin song cover"
+    hidden
+  >
+</div>
+
+    <button id="spin-button">Find my song ✨</button>
+    <p id="result" aria-live="polite"></p>
+
+    <button id="another-set-button" hidden>
+  Play for another set
+</button>
+
+<p class="collection-note" id="description"> 
+  Get one NFC song keychain for every $14 spent! 
+  Show your results and receipt to an admin to collect your keychain!
+</p>
+
+<div id="song-history" hidden>
+  <h2>Your song results</h2>
+  <ol id="results-list"></ol>
+</div>
+
+    <footer class="watermark">@FreenBecky_SG</footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
