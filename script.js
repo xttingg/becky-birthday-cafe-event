@@ -89,7 +89,17 @@ spinButton.addEventListener("click", function () {
   songCover.hidden = false;
   coverContainer.classList.remove("revealed");
 
-  const chosenSong = songs[Math.floor(Math.random() * songs.length)];
+  let chosenSong;
+
+if (songResults.length === 1) {
+  // Give the other song on their second play.
+  chosenSong = songs.find(function (song) {
+    return song.name !== songResults[0];
+  });
+} else {
+  // Keep the first play random.
+  chosenSong = songs[Math.floor(Math.random() * songs.length)];
+}
 
   spinButton.disabled = true;
   description.hidden = true;
