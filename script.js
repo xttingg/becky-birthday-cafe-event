@@ -112,14 +112,28 @@ function prepareAudio(song) {
 function playChorus() {
   if (!currentAudioSong || !audioRevealed) return;
 
-  songAudio.currentTime = currentAudioSong.start;
-  songAudio.muted = false;
+  songAudio.pause();
+  songAudio.muted = true;
 
-  songAudio.play().then(updateMusicButton).catch(function () {
-    updateMusicButton();
-  });
+  function startMusic() {
+    if (!audioRevealed) return;
+
+    songAudio.muted = false;
+    songAudio.play().then(updateMusicButton).catch(function () {
+      updateMusicButton();
+    });
+  }
+
+  const chorusStart = currentAudioSong.start;
+
+  if (Math.abs(songAudio.currentTime - chorusStart) < 0.1) {
+    startMusic();
+  } else {
+    // Wait until the player has moved to the chorus.
+    songAudio.addEventListener("seeked", startMusic, { once: true });
+    songAudio.currentTime = chorusStart;
+  }
 }
-
 function revealAudio() {
   audioRevealed = true;
   musicButton.hidden = false;
