@@ -14,12 +14,12 @@ const songs = [
   {
     name: "Skin",
     image: "Skin.jpg",
-    audio: "audio/skin.mp3"
+    audio: "audio/Skin.mp3"
   },
   {
     name: "Stuck in Between",
     image: "Stuck in Between.jpg",
-    audio: "audio/stuck-in-between.mp3"
+    audio: "audio/Stuck in Between.mp3"
   }
 ];
 
