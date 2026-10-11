@@ -11,9 +11,48 @@ const resultsList = document.getElementById("results-list");
 const description = document.getElementById("description");
 
 const songs = [
-  { name: "Skin", image: "Skin.jpg" },
-  { name: "Stuck in Between", image: "Stuck in Between.jpg" }
+  {
+    name: "Skin",
+    image: "Skin.jpg",
+    audio: "audio/skin.mp3"
+  },
+  {
+    name: "Stuck in Between",
+    image: "Stuck in Between.jpg",
+    audio: "audio/stuck-in-between.mp3"
+  }
 ];
+
+// Create a player below the result.
+const songAudio = document.createElement("audio");
+songAudio.controls = true;
+songAudio.hidden = true;
+songAudio.preload = "metadata";
+songAudio.style.margin = "16px 0";
+songAudio.style.width = "min(320px, 100%)";
+result.after(songAudio);
+
+function prepareAudio(song) {
+  songAudio.pause();
+  songAudio.src = song.audio;
+  songAudio.hidden = true;
+
+  // Start silently during the shuffle.
+  songAudio.muted = true;
+  songAudio.play().catch(function () {
+    // Fans can use the player if autoplay is blocked.
+  });
+}
+
+function revealAudio() {
+  songAudio.currentTime = 0;
+  songAudio.muted = false;
+  songAudio.hidden = false;
+
+  songAudio.play().catch(function () {
+    console.log("Tap the audio player to hear your song.");
+  });
+}
 
 const storageKey = "becky-song-results";
 let songResults = [];
@@ -101,6 +140,8 @@ if (songResults.length === 1) {
   chosenSong = songs[Math.floor(Math.random() * songs.length)];
 }
 
+  prepareAudio(chosenSong);
+spinButton.disabled = true;
   spinButton.disabled = true;
   description.hidden = true;
   spinButton.textContent = "Finding your song…";
@@ -126,8 +167,9 @@ if (songResults.length === 1) {
       }
 
       showResult(chosenSong);
-      updateHistory();
-      coverContainer.classList.add("revealed");
+updateHistory();
+coverContainer.classList.add("revealed");
+revealAudio();
     }
   }
 
@@ -136,6 +178,9 @@ if (songResults.length === 1) {
 
 anotherSetButton.addEventListener("click", function () {
   // Bring back the mystery cover while keeping previous results.
+    songAudio.pause();
+  songAudio.currentTime = 0;
+  songAudio.hidden = true;
   description.hidden = false;
   mysteryCover.hidden = false;
   songCover.hidden = true;
