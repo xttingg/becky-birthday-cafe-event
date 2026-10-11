@@ -1,10 +1,8 @@
-console.log("Updated shuffle code loaded");
 const spinButton = document.getElementById("spin-button");
 const result = document.getElementById("result");
 const songCover = document.getElementById("song-cover");
 const coverContainer = document.querySelector(".cover-container");
 const mysteryCover = document.getElementById("mystery-cover");
-
 const anotherSetButton = document.getElementById("another-set-button");
 const songHistory = document.getElementById("song-history");
 const resultsList = document.getElementById("results-list");
@@ -29,59 +27,10 @@ const songs = [
   }
 ];
 
-// Create a player below the result.
-const songAudio = document.createElement("audio");
-songAudio.controls = false;
-songAudio.hidden = true;
-songAudio.preload = "metadata";
-songAudio.style.margin = "16px 0";
-songAudio.style.width = "min(320px, 100%)";
-result.after(songAudio);
-
-let currentAudioSong = null;
-let audioRevealed = false;
-
-function prepareAudio(song) {
-  songAudio.pause();
-  currentAudioSong = song;
-  audioRevealed = false;
-
-  songAudio.src = song.audio;
-  songAudio.hidden = true;
-  songAudio.muted = true;
-
-  songAudio.play().catch(function () {});
-}
-
-function revealAudio() {
-  if (!currentAudioSong) return;
-
-  audioRevealed = true;
-  songAudio.currentTime = currentAudioSong.start;
-  songAudio.muted = false;
-  songAudio.hidden = false;
-
-  songAudio.play().catch(function () {
-    console.log("Tap the audio player to hear your song.");
-  });
-}
-
-// Stop at the end of the chosen clip.
-songAudio.addEventListener("timeupdate", function () {
-  if (
-    audioRevealed &&
-    currentAudioSong &&
-    songAudio.currentTime >= currentAudioSong.end
-  ) {
-    songAudio.pause();
-    songAudio.currentTime = currentAudioSong.start;
-  }
-});
-
+// Save results in this browser.
 const storageKey = "becky-song-results";
 let songResults = [];
 
-// Restore the list, or migrate the previous single saved result.
 try {
   const savedList = localStorage.getItem(storageKey);
 
@@ -107,13 +56,121 @@ try {
     }
   }
 } catch (error) {
-  console.log("Couldn't restore saved results.");
+  console.log("Couldn't restore saved results.", error);
 }
 
-// Preload both images.
+// Preload the covers.
 songs.forEach(function (song) {
   const image = new Image();
   image.src = song.image;
+});
+
+// Hidden audio player.
+const songAudio = document.createElement("audio");
+songAudio.controls = false;
+songAudio.hidden = true;
+songAudio.preload = "auto";
+document.body.appendChild(songAudio);
+
+// Small sound button instead of the media player.
+const musicButton = document.createElement("button");
+musicButton.type = "button";
+musicButton.textContent = "▶ Play song";
+musicButton.hidden = true;
+musicButton.style.margin = "10px 0";
+musicButton.style.fontSize = "14px";
+musicButton.style.padding = "10px 18px";
+result.after(musicButton);
+
+let currentAudioSong = null;
+let audioRevealed = false;
+
+function stopAudio() {
+  audioRevealed = false;
+  songAudio.pause();
+  musicButton.hidden = true;
+}
+
+function prepareAudio(song) {
+  stopAudio();
+  currentAudioSong = song;
+  songAudio.src = song.audio;
+  songAudio.muted = true;
+
+  // Prepare playback during the original button tap.
+  songAudio.play().catch(function (error) {
+    console.log("Audio preparation:", error.name);
+  });
+}
+
+function playChorus() {
+  if (!currentAudioSong || !audioRevealed) return;
+
+  songAudio.currentTime = currentAudioSong.start;
+  songAudio.muted = false;
+
+  songAudio.play().catch(function (error) {
+    musicButton.textContent = "▶ Play song";
+    console.log("Tap Play song to start audio.", error);
+  });
+}
+
+function revealAudio() {
+  audioRevealed = true;
+  musicButton.hidden = false;
+  musicButton.textContent = "▶ Play song";
+
+  if (songAudio.readyState >= 1) {
+    playChorus();
+  }
+}
+
+// Handle audio that finishes loading after the reveal.
+songAudio.addEventListener("loadedmetadata", function () {
+  if (audioRevealed) {
+    playChorus();
+  }
+});
+
+songAudio.addEventListener("play", function () {
+  musicButton.textContent = "❚❚ Pause song";
+});
+
+songAudio.addEventListener("pause", function () {
+  musicButton.textContent = "▶ Play song";
+});
+
+// Stop the clip and return to its beginning.
+songAudio.addEventListener("timeupdate", function () {
+  if (
+    audioRevealed &&
+    currentAudioSong &&
+    songAudio.currentTime >= currentAudioSong.end
+  ) {
+    songAudio.pause();
+    songAudio.currentTime = currentAudioSong.start;
+  }
+});
+
+musicButton.addEventListener("click", function () {
+  if (!currentAudioSong || !audioRevealed) return;
+
+  if (songAudio.paused) {
+    if (
+      songAudio.currentTime < currentAudioSong.start ||
+      songAudio.currentTime >= currentAudioSong.end
+    ) {
+      songAudio.currentTime = currentAudioSong.start;
+    }
+
+    songAudio.muted = false;
+
+    songAudio.play().catch(function (error) {
+      console.log("Couldn't play the song.", error);
+    });
+  } else {
+    songAudio.pause();
+  }
 });
 
 function showCover(song) {
@@ -125,12 +182,14 @@ function updateHistory() {
   resultsList.replaceChildren();
 
   songResults.forEach(function (name) {
-    const item = document.createElement("li");
     const song = songs.find(function (song) {
-  return song.name === name;
-});
+      return song.name === name;
+    });
 
-item.textContent = name + " + " + song.photocard;
+    const item = document.createElement("li");
+    item.textContent = song.name + " + " + song.photocard;
+    resultsList.appendChild(item);
+  });
 
   songHistory.hidden = songResults.length === 0;
 }
@@ -142,35 +201,51 @@ function showResult(song) {
   showCover(song);
 
   result.textContent =
-  "You got: " + song.name + " + " + song.photocard + "!";
+    "You got: " + song.name + " + " + song.photocard + "!";
+
   spinButton.hidden = true;
   spinButton.disabled = false;
   anotherSetButton.hidden = false;
 }
 
+function showStart() {
+  stopAudio();
+
+  description.hidden = false;
+  mysteryCover.hidden = false;
+  songCover.hidden = true;
+  coverContainer.classList.remove("revealed");
+
+  result.textContent = "";
+  anotherSetButton.hidden = true;
+  spinButton.hidden = false;
+  spinButton.disabled = false;
+  spinButton.textContent = "Find my song ✨";
+}
+
 spinButton.addEventListener("click", function () {
   if (spinButton.disabled) return;
 
+  let chosenSong;
+
+  if (songResults.length === 1) {
+    // Second play gives the other song and photocard.
+    chosenSong = songs.find(function (song) {
+      return song.name !== songResults[0];
+    });
+  } else {
+    // First and third onwards are random.
+    chosenSong = songs[Math.floor(Math.random() * songs.length)];
+  }
+
+  spinButton.disabled = true;
+  prepareAudio(chosenSong);
+
+  description.hidden = true;
   mysteryCover.hidden = true;
   songCover.hidden = false;
   coverContainer.classList.remove("revealed");
 
-  let chosenSong;
-
-if (songResults.length === 1) {
-  // Give the other song on their second play.
-  chosenSong = songs.find(function (song) {
-    return song.name !== songResults[0];
-  });
-} else {
-  // Keep the first play random.
-  chosenSong = songs[Math.floor(Math.random() * songs.length)];
-}
-
-  prepareAudio(chosenSong);
-spinButton.disabled = true;
-  spinButton.disabled = true;
-  description.hidden = true;
   spinButton.textContent = "Finding your song…";
   result.textContent = "";
 
@@ -190,45 +265,21 @@ spinButton.disabled = true;
       try {
         localStorage.setItem(storageKey, JSON.stringify(songResults));
       } catch (error) {
-        console.log("Couldn't save results in this browser.");
+        console.log("Couldn't save results.", error);
       }
 
       showResult(chosenSong);
-updateHistory();
-coverContainer.classList.add("revealed");
-revealAudio();
+      updateHistory();
+      coverContainer.classList.add("revealed");
+      revealAudio();
     }
   }
 
   shuffle();
 });
 
-anotherSetButton.addEventListener("click", function () {
-  // Bring back the mystery cover while keeping previous results.
-    songAudio.pause();
-  audioRevealed = false;
-  songAudio.currentTime = 0;
-  songAudio.hidden = true;
-  description.hidden = false;
-  mysteryCover.hidden = false;
-  songCover.hidden = true;
-  coverContainer.classList.remove("revealed");
+anotherSetButton.addEventListener("click", showStart);
 
-  result.textContent = "";
-  anotherSetButton.hidden = true;
-  spinButton.hidden = false;
-  spinButton.disabled = false;
-  spinButton.textContent = "Find my song ✨";
-});
-
-// Show the latest result when reopening the page.
+// Open on the mystery cover, keeping previous history.
 updateHistory();
-
-if (songResults.length > 0) {
-  const latestName = songResults[songResults.length - 1];
-  const latestSong = songs.find(function (song) {
-    return song.name === latestName;
-  });
-
-  showResult(latestSong);
-}
+showStart();
