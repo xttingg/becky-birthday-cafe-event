@@ -27,10 +27,10 @@ const songs = [
   }
 ];
 
-// Save results in this browser.
 const storageKey = "becky-song-results";
 let songResults = [];
 
+// Restore previous results.
 try {
   const savedList = localStorage.getItem(storageKey);
 
@@ -56,7 +56,7 @@ try {
     }
   }
 } catch (error) {
-  console.log("Couldn't restore saved results.", error);
+  console.log("Couldn't restore results.", error);
 }
 
 // Preload the covers.
@@ -65,18 +65,18 @@ songs.forEach(function (song) {
   image.src = song.image;
 });
 
-// Hidden audio player.
+// Keep the native audio player hidden.
 const songAudio = document.createElement("audio");
 songAudio.controls = false;
 songAudio.hidden = true;
 songAudio.preload = "auto";
 document.body.appendChild(songAudio);
 
-// Small sound button instead of the media player.
+// Small music control.
 const musicButton = document.createElement("button");
 musicButton.type = "button";
-musicButton.textContent = "▶ Play song";
 musicButton.hidden = true;
+musicButton.textContent = "▶ Play song";
 musicButton.style.margin = "10px 0";
 musicButton.style.fontSize = "14px";
 musicButton.style.padding = "10px 18px";
@@ -84,6 +84,12 @@ result.after(musicButton);
 
 let currentAudioSong = null;
 let audioRevealed = false;
+
+function updateMusicButton() {
+  musicButton.textContent = songAudio.paused
+    ? "▶ Play song"
+    : "❚❚ Pause song";
+}
 
 function stopAudio() {
   audioRevealed = false;
@@ -97,9 +103,9 @@ function prepareAudio(song) {
   songAudio.src = song.audio;
   songAudio.muted = true;
 
-  // Prepare playback during the original button tap.
-  songAudio.play().catch(function (error) {
-    console.log("Audio preparation:", error.name);
+  // Start muted during the original tap.
+  songAudio.play().catch(function () {
+    // The music button remains available if autoplay is blocked.
   });
 }
 
@@ -109,38 +115,33 @@ function playChorus() {
   songAudio.currentTime = currentAudioSong.start;
   songAudio.muted = false;
 
-  songAudio.play().catch(function (error) {
-    musicButton.textContent = "▶ Play song";
-    console.log("Tap Play song to start audio.", error);
+  songAudio.play().then(updateMusicButton).catch(function () {
+    updateMusicButton();
   });
 }
 
 function revealAudio() {
   audioRevealed = true;
   musicButton.hidden = false;
-  musicButton.textContent = "▶ Play song";
 
   if (songAudio.readyState >= 1) {
     playChorus();
+  } else {
+    musicButton.textContent = "▶ Play song";
   }
 }
 
-// Handle audio that finishes loading after the reveal.
+// Play when metadata is ready, if the result is already visible.
 songAudio.addEventListener("loadedmetadata", function () {
   if (audioRevealed) {
     playChorus();
   }
 });
 
-songAudio.addEventListener("play", function () {
-  musicButton.textContent = "❚❚ Pause song";
-});
+songAudio.addEventListener("play", updateMusicButton);
+songAudio.addEventListener("pause", updateMusicButton);
 
-songAudio.addEventListener("pause", function () {
-  musicButton.textContent = "▶ Play song";
-});
-
-// Stop the clip and return to its beginning.
+// Stop at the end of the chorus.
 songAudio.addEventListener("timeupdate", function () {
   if (
     audioRevealed &&
@@ -155,22 +156,27 @@ songAudio.addEventListener("timeupdate", function () {
 musicButton.addEventListener("click", function () {
   if (!currentAudioSong || !audioRevealed) return;
 
-  if (songAudio.paused) {
-    if (
-      songAudio.currentTime < currentAudioSong.start ||
-      songAudio.currentTime >= currentAudioSong.end
-    ) {
-      songAudio.currentTime = currentAudioSong.start;
-    }
-
-    songAudio.muted = false;
-
-    songAudio.play().catch(function (error) {
-      console.log("Couldn't play the song.", error);
-    });
-  } else {
+  if (!songAudio.paused) {
     songAudio.pause();
+    return;
   }
+
+  if (songAudio.readyState < 1) {
+    songAudio.load();
+    return;
+  }
+
+  if (
+    songAudio.currentTime < currentAudioSong.start ||
+    songAudio.currentTime >= currentAudioSong.end
+  ) {
+    songAudio.currentTime = currentAudioSong.start;
+  }
+
+  songAudio.muted = false;
+  songAudio.play().then(updateMusicButton).catch(function (error) {
+    console.log("Couldn't play the song.", error);
+  });
 });
 
 function showCover(song) {
@@ -229,12 +235,12 @@ spinButton.addEventListener("click", function () {
   let chosenSong;
 
   if (songResults.length === 1) {
-    // Second play gives the other song and photocard.
+    // Give the other song on the second play.
     chosenSong = songs.find(function (song) {
       return song.name !== songResults[0];
     });
   } else {
-    // First and third onwards are random.
+    // First play and third onwards are random.
     chosenSong = songs[Math.floor(Math.random() * songs.length)];
   }
 
@@ -280,6 +286,6 @@ spinButton.addEventListener("click", function () {
 
 anotherSetButton.addEventListener("click", showStart);
 
-// Open on the mystery cover, keeping previous history.
+// Open on the mystery cover while keeping saved history.
 updateHistory();
 showStart();
