@@ -14,12 +14,16 @@ const songs = [
   {
     name: "Skin",
     image: "Skin.jpg",
-    audio: "audio/Skin.mp3"
+    audio: "audio/Skin.mp3",
+    start: 34,
+    end: 47
   },
   {
     name: "Stuck in Between",
     image: "Stuck in Between.jpg",
-    audio: "audio/Stuck in Between.mp3"
+    audio: "audio/Stuck in Between.mp3",
+    start: 38,
+    end: 61
   }
 ];
 
@@ -32,20 +36,26 @@ songAudio.style.margin = "16px 0";
 songAudio.style.width = "min(320px, 100%)";
 result.after(songAudio);
 
+let currentAudioSong = null;
+let audioRevealed = false;
+
 function prepareAudio(song) {
   songAudio.pause();
+  currentAudioSong = song;
+  audioRevealed = false;
+
   songAudio.src = song.audio;
   songAudio.hidden = true;
-
-  // Start silently during the shuffle.
   songAudio.muted = true;
-  songAudio.play().catch(function () {
-    // Fans can use the player if autoplay is blocked.
-  });
+
+  songAudio.play().catch(function () {});
 }
 
 function revealAudio() {
-  songAudio.currentTime = 0;
+  if (!currentAudioSong) return;
+
+  audioRevealed = true;
+  songAudio.currentTime = currentAudioSong.start;
   songAudio.muted = false;
   songAudio.hidden = false;
 
@@ -53,6 +63,18 @@ function revealAudio() {
     console.log("Tap the audio player to hear your song.");
   });
 }
+
+// Stop at the end of the chosen clip.
+songAudio.addEventListener("timeupdate", function () {
+  if (
+    audioRevealed &&
+    currentAudioSong &&
+    songAudio.currentTime >= currentAudioSong.end
+  ) {
+    songAudio.pause();
+    songAudio.currentTime = currentAudioSong.start;
+  }
+});
 
 const storageKey = "becky-song-results";
 let songResults = [];
@@ -179,6 +201,7 @@ revealAudio();
 anotherSetButton.addEventListener("click", function () {
   // Bring back the mystery cover while keeping previous results.
     songAudio.pause();
+  audioRevealed = false;
   songAudio.currentTime = 0;
   songAudio.hidden = true;
   description.hidden = false;
