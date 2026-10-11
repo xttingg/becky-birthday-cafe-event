@@ -8,48 +8,24 @@ const songHistory = document.getElementById("song-history");
 const resultsList = document.getElementById("results-list");
 const description = document.getElementById("description");
 
+// These files contain only the chorus, so no timestamp jump is needed.
 const songs = [
-  {
-    name: "Skin",
-    photocard: "3D photocard A",
-    image: "Skin.jpg",
-    audio: "audio/Skin.mp3",
-    start: 34,
-    end: 47
-  },
-  {
-    name: "Stuck in Between",
-    photocard: "3D photocard B",
-    image: "Stuck in Between.jpg",
-    audio: "audio/Stuck in Between.mp3",
-    start: 38,
-    end: 61
-  }
+  { name: "Skin", photocard: "3D photocard A", image: "Skin.jpg", audio: "audio/skin-chorus.mp3" },
+  { name: "Stuck in Between", photocard: "3D photocard B", image: "Stuck in Between.jpg", audio: "audio/stuck-in-between-chorus.mp3" }
 ];
 
 const storageKey = "becky-song-results";
 let songResults = [];
-
-// Restore previous results.
 try {
-  const savedList = localStorage.getItem(storageKey);
-
-  if (savedList !== null) {
-    const parsedList = JSON.parse(savedList);
-
-    if (Array.isArray(parsedList)) {
-      songResults = parsedList.filter(function (name) {
-        return songs.some(function (song) {
-          return song.name === name;
-        });
-      });
+  const saved = localStorage.getItem(storageKey);
+  if (saved !== null) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) {
+      songResults = parsed.filter(name => songs.some(song => song.name === name));
     }
   } else {
     const oldName = localStorage.getItem("becky-song");
-
-    if (songs.some(function (song) {
-      return song.name === oldName;
-    })) {
+    if (songs.some(song => song.name === oldName)) {
       songResults = [oldName];
       localStorage.setItem(storageKey, JSON.stringify(songResults));
       localStorage.removeItem("becky-song");
@@ -59,20 +35,17 @@ try {
   console.log("Couldn't restore results.", error);
 }
 
-// Preload the covers.
-songs.forEach(function (song) {
+songs.forEach(song => {
   const image = new Image();
   image.src = song.image;
 });
 
-// Keep the native audio player hidden.
 const songAudio = document.createElement("audio");
 songAudio.controls = false;
 songAudio.hidden = true;
 songAudio.preload = "auto";
 document.body.appendChild(songAudio);
 
-// Small music control.
 const musicButton = document.createElement("button");
 musicButton.type = "button";
 musicButton.hidden = true;
@@ -82,16 +55,15 @@ musicButton.style.fontSize = "14px";
 musicButton.style.padding = "10px 18px";
 result.after(musicButton);
 
-let currentAudioSong = null;
 let audioRevealed = false;
+let audioVersion = 0;
 
 function updateMusicButton() {
-  musicButton.textContent = songAudio.paused
-    ? "▶ Play song"
-    : "❚❚ Pause song";
+  musicButton.textContent = songAudio.paused ? "▶ Play song" : "❚❚ Pause song";
 }
 
 function stopAudio() {
+  audioVersion++;
   audioRevealed = false;
   songAudio.pause();
   musicButton.hidden = true;
@@ -99,98 +71,43 @@ function stopAudio() {
 
 function prepareAudio(song) {
   stopAudio();
-  currentAudioSong = song;
+  const version = audioVersion;
   songAudio.src = song.audio;
   songAudio.muted = true;
+  // Try to prepare audio during the fan's tap, keeping it silent.
+  songAudio.play().then(() => {
+    if (version === audioVersion && !audioRevealed) {
+      songAudio.pause();
+      songAudio.currentTime = 0;
+    }
+  }).catch(() => {});
+}
 
-  // Start muted during the original tap.
-  songAudio.play().catch(function () {
-    // The music button remains available if autoplay is blocked.
+function playMusic() {
+  songAudio.muted = false;
+  songAudio.play().then(updateMusicButton).catch(() => {
+    updateMusicButton();
   });
 }
 
-function playChorus() {
-  if (!currentAudioSong || !audioRevealed) return;
-
-  songAudio.pause();
-  songAudio.muted = true;
-
-  function startMusic() {
-    if (!audioRevealed) return;
-
-    songAudio.muted = false;
-    songAudio.play().then(updateMusicButton).catch(function () {
-      updateMusicButton();
-    });
-  }
-
-  const chorusStart = currentAudioSong.start;
-
-  if (Math.abs(songAudio.currentTime - chorusStart) < 0.1) {
-    startMusic();
-  } else {
-    // Wait until the player has moved to the chorus.
-    songAudio.addEventListener("seeked", startMusic, { once: true });
-    songAudio.currentTime = chorusStart;
-  }
-}
 function revealAudio() {
   audioRevealed = true;
   musicButton.hidden = false;
-
-  if (songAudio.readyState >= 1) {
-    playChorus();
-  } else {
-    musicButton.textContent = "▶ Play song";
-  }
+  playMusic();
 }
-
-// Play when metadata is ready, if the result is already visible.
-songAudio.addEventListener("loadedmetadata", function () {
-  if (audioRevealed) {
-    playChorus();
-  }
-});
 
 songAudio.addEventListener("play", updateMusicButton);
 songAudio.addEventListener("pause", updateMusicButton);
+songAudio.addEventListener("ended", updateMusicButton);
 
-// Stop at the end of the chorus.
-songAudio.addEventListener("timeupdate", function () {
-  if (
-    audioRevealed &&
-    currentAudioSong &&
-    songAudio.currentTime >= currentAudioSong.end
-  ) {
+musicButton.addEventListener("click", () => {
+  if (!audioRevealed) return;
+  if (songAudio.paused) {
+    if (songAudio.ended) songAudio.currentTime = 0;
+    playMusic();
+  } else {
     songAudio.pause();
-    songAudio.currentTime = currentAudioSong.start;
   }
-});
-
-musicButton.addEventListener("click", function () {
-  if (!currentAudioSong || !audioRevealed) return;
-
-  if (!songAudio.paused) {
-    songAudio.pause();
-    return;
-  }
-
-  if (songAudio.readyState < 1) {
-    songAudio.load();
-    return;
-  }
-
-  if (
-    songAudio.currentTime < currentAudioSong.start ||
-    songAudio.currentTime >= currentAudioSong.end
-  ) {
-    songAudio.currentTime = currentAudioSong.start;
-  }
-
-  songAudio.muted = false;
-  songAudio.play().then(updateMusicButton).catch(function (error) {
-    console.log("Couldn't play the song.", error);
-  });
 });
 
 function showCover(song) {
@@ -200,17 +117,12 @@ function showCover(song) {
 
 function updateHistory() {
   resultsList.replaceChildren();
-
-  songResults.forEach(function (name) {
-    const song = songs.find(function (song) {
-      return song.name === name;
-    });
-
+  songResults.forEach(name => {
+    const song = songs.find(song => song.name === name);
     const item = document.createElement("li");
     item.textContent = song.name + " + " + song.photocard;
     resultsList.appendChild(item);
   });
-
   songHistory.hidden = songResults.length === 0;
 }
 
@@ -219,10 +131,7 @@ function showResult(song) {
   mysteryCover.hidden = true;
   songCover.hidden = false;
   showCover(song);
-
-  result.textContent =
-    "You got: " + song.name + " + " + song.photocard + "!";
-
+  result.textContent = "You got: " + song.name + " + " + song.photocard + "!";
   spinButton.hidden = true;
   spinButton.disabled = false;
   anotherSetButton.hidden = false;
@@ -230,12 +139,10 @@ function showResult(song) {
 
 function showStart() {
   stopAudio();
-
   description.hidden = false;
   mysteryCover.hidden = false;
   songCover.hidden = true;
   coverContainer.classList.remove("revealed");
-
   result.textContent = "";
   anotherSetButton.hidden = true;
   spinButton.hidden = false;
@@ -243,63 +150,45 @@ function showStart() {
   spinButton.textContent = "Find my song ✨";
 }
 
-spinButton.addEventListener("click", function () {
+spinButton.addEventListener("click", () => {
   if (spinButton.disabled) return;
-
-  let chosenSong;
-
-  if (songResults.length === 1) {
-    // Give the other song on the second play.
-    chosenSong = songs.find(function (song) {
-      return song.name !== songResults[0];
-    });
-  } else {
-    // First play and third onwards are random.
-    chosenSong = songs[Math.floor(Math.random() * songs.length)];
-  }
+  const chosenSong = songResults.length === 1
+    ? songs.find(song => song.name !== songResults[0])
+    : songs[Math.floor(Math.random() * songs.length)];
 
   spinButton.disabled = true;
   prepareAudio(chosenSong);
-
   description.hidden = true;
   mysteryCover.hidden = true;
   songCover.hidden = false;
   coverContainer.classList.remove("revealed");
-
   spinButton.textContent = "Finding your song…";
   result.textContent = "";
 
   let switches = 0;
   let coverIndex = 0;
-
   function shuffle() {
     showCover(songs[coverIndex]);
     coverIndex = (coverIndex + 1) % songs.length;
     switches++;
-
     if (switches < 14) {
       setTimeout(shuffle, 80 + switches * 20);
     } else {
       songResults.push(chosenSong.name);
-
       try {
         localStorage.setItem(storageKey, JSON.stringify(songResults));
       } catch (error) {
         console.log("Couldn't save results.", error);
       }
-
       showResult(chosenSong);
       updateHistory();
       coverContainer.classList.add("revealed");
       revealAudio();
     }
   }
-
   shuffle();
 });
 
 anotherSetButton.addEventListener("click", showStart);
-
-// Open on the mystery cover while keeping saved history.
 updateHistory();
 showStart();
