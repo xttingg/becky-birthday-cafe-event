@@ -13,6 +13,7 @@ const description = document.getElementById("description");
 const songs = [
   {
     name: "Skin",
+    photocard: "3D photocard A",
     image: "Skin.jpg",
     audio: "audio/Skin.mp3",
     start: 34,
@@ -20,6 +21,7 @@ const songs = [
   },
   {
     name: "Stuck in Between",
+    photocard: "3D photocard B",
     image: "Stuck in Between.jpg",
     audio: "audio/Stuck in Between.mp3",
     start: 38,
@@ -29,7 +31,7 @@ const songs = [
 
 // Create a player below the result.
 const songAudio = document.createElement("audio");
-songAudio.controls = true;
+songAudio.controls = false;
 songAudio.hidden = true;
 songAudio.preload = "metadata";
 songAudio.style.margin = "16px 0";
@@ -124,9 +126,11 @@ function updateHistory() {
 
   songResults.forEach(function (name) {
     const item = document.createElement("li");
-    item.textContent = name;
-    resultsList.appendChild(item);
-  });
+    const song = songs.find(function (song) {
+  return song.name === name;
+});
+
+item.textContent = name + " + " + song.photocard;
 
   songHistory.hidden = songResults.length === 0;
 }
@@ -137,7 +141,8 @@ function showResult(song) {
   songCover.hidden = false;
   showCover(song);
 
-  result.textContent = "You got: " + song.name + "!";
+  result.textContent =
+  "You got: " + song.name + " + " + song.photocard + "!";
   spinButton.hidden = true;
   spinButton.disabled = false;
   anotherSetButton.hidden = false;
